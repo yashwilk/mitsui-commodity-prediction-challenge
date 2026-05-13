@@ -99,6 +99,29 @@ spread_return_5d = log_return_5d of asset A - log_return_5d of asset B
 
 ---
 
+## Evaluation Metric — Spearman Sharpe
+
+It measures how consistently your model correctly ranks assets from best to worst performance, every single day.
+
+date_id=0:
+  actual ranks    : [1, 2, 3, ...]  (across targets: target_0, target_1, ...)
+  predicted ranks : [1, 2, 3, ...]
+  daily_corrs list → corr = 0.85
+
+Final grade = mean / std of all daily correlation scores
+
+---
+
+## Model 1 — Baseline: Predict Zero for Everything
+
+Predicting zero is the simplest possible prediction — it requires no data, no features, no training. It sets the absolute floor. Any real model must beat this score.
+
+### Baseline 2: Predict Yesterday's Return
+
+Baseline 2 predicts that tomorrow's return will equal today's return. This captures the simplest possible momentum signal — if copper rose today, predict it will rise tomorrow. No features, no training, just one shift of the actual labels. This is the smarter baseline — it uses real information from the data.
+
+---
+
 train.csv row date_id=5:
 "On day 5, copper was 9000, gold was 1820, USD/JPY was 131..."
 
