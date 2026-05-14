@@ -132,3 +132,94 @@ def train_all_targets(train_df, label_df, target_info_list):
 print("Training 424 LightGBM models...")
 print("This will take a few minutes — one model per target\n")
 models = train_all_targets(train, label, target_info)
+
+
+
+
+def predict_all_targets(test_df,  models_dict, target_info_list):
+    """
+    For each target, build features from test.csv,
+    preprocess using training statistics, and predict.
+    
+    Returns a DataFrame with shape (n_test_rows, 424)
+    one predicted return per target per test day.
+    """
+    target_cols  = [t['target'] for t in target_info_list]
+    n_rows       = len(test_df)
+    predictions  = pd.DataFrame(
+        np.zeros((n_rows, len(target_cols))),
+        columns=target_cols
+    )
+
+    for t in tqdm(target_info_list, desc="Predicting"):
+        target_name = t['target']
+
+        if target_name not in models_dict:
+            continue
+
+        model_data = models_dict[target_name]
+        model      = model_data['model']
+        imputer    = model_data['imputer']
+        scaler     = model_data['scaler']
+        assets     = model_data['assets']
+
+        # build features for test data
+        all_features = []
+        for asset in assets:
+            if asset not in test_df.columns:
+                continue
+            feat = create_features_for_assets(test_df, asset)
+            all_features.append(feat)
+
+        if not all_features:
+            continue
+
+        X_test = pd.concat(all_features, axis=1)
+
+        # add spread features if two assets
+        if len(assets) == 2:
+            a1     = assets[0]
+            a2     = assets[1]
+            log_p1 = np.log(test_df[a1])
+            log_p2 = np.log(test_df[a2])
+            X_test['spread_ret_1d'] = (log_p1.diff(1) - log_p2.diff(1)).shift(1)
+            X_test['spread_ret_5d'] = (log_p1.diff(5) - log_p2.diff(5)).shift(1)
+
+        # preprocess using training statistics
+        X_test = X_test.replace([np.inf, -np.inf], np.nan)
+        X_test = np.log1p(np.abs(X_test)) * np.sign(X_test)
+        X_test = X_test.replace([np.inf, -np.inf], np.nan)
+        X_test = pd.DataFrame(
+            imputer.transform(X_test),
+            columns=X_test.columns
+        )
+        X_test = pd.DataFrame(
+            scaler.transform(X_test),
+            columns=X_test.columns
+        )
+
+        # predict
+        preds = model.predict(X_test)
+        predictions[target_name] = preds
+
+    return predictions
+
+
+# load test data
+test = pd.read_csv(DATA_PATH + 'test.csv')
+print(f"Test shape: {test.shape}")
+
+# generate predictions
+print("\nGenerating predictions on test.csv...")
+test_predictions = predict_all_targets(test, train, models, target_info)
+
+print(f"\nPredictions shape: {test_predictions.shape}")
+print(f"Sample predictions (first 3 rows, first 5 targets):")
+print(test_predictions.iloc[:3, :5].to_string())
+print(f"\nAny NaN in predictions: {test_predictions.isnull().any().any()}")
+
+
+
+
+
+
