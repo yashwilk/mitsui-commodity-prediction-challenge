@@ -19,6 +19,12 @@ def parse_pair(pairs_df):
         })
     return parsed
 
+"""{'target': 'target_0', 'lag': 1, 'assets': ['US_Stock_VT_adj_close']}
+{'target': 'target_1', 'lag': 1, 'assets': ['LME_PB_Close', 'US_Stock_VT_adj_close']}
+{'target': 'target_2', 'lag': 1, 'assets': ['LME_CA_Close', 'LME_ZS_Close']}
+{'target': 'target_3', 'lag': 1, 'assets': ['LME_AH_Close', 'LME_ZS_Close']}
+{'target': 'target_4', 'lag': 1, 'assets': ['LME_AH_Close', 'JPX_Gold_Standard_Futures_Close']}"""
+
 
 def create_features_for_assets(df, asset_col):
     """
@@ -66,6 +72,17 @@ def create_features_for_assets(df, asset_col):
 
     return feature
 
+"""(1961, 16) 16 features for one asset"""
+
+"""LME_CA_Close_log_ret_1d  LME_CA_Close_price_lag1  ...
+0              NaN                     NaN            ...
+1              NaN                     NaN            ...
+2           -0.008083                  NaN            ...
+3            0.005790                  NaN            ...
+4           -0.009434               9000.0            ..."""
+
+
+
 
 def build_dataset_for_target(train_df, label_df, target_dict):
     """
@@ -104,3 +121,13 @@ def build_dataset_for_target(train_df, label_df, target_dict):
     y    = y[mask]
 
     return X, y
+
+
+
+"""(1875, 34)"""
+
+"""excludes blank"""    """ 34 features for 2 assers"""
+"""LME_CA_Close_log_ret_1d  LME_ZS_Close_log_ret_1d  spread_ret_1d  ...
+0          -0.004231                  -0.003812          -0.000419   ...
+1          +0.006210                  +0.004521          +0.001689   ...
+2          -0.008082                  -0.006234          -0.001848   ..."""

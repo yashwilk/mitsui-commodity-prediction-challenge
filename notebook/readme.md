@@ -112,7 +112,8 @@ Final grade = mean / std of all daily correlation scores
 
 ---
 
-## Model 1 — Baseline: Predict Zero for Everything
+## Model 1 
+— Baseline1:Predict Zero for Everything
 
 Predicting zero is the simplest possible prediction — it requires no data, no features, no training. It sets the absolute floor. Any real model must beat this score.
 
@@ -139,3 +140,60 @@ This means train_labels.csv computed target_408 as:
 And train.csv provides:
   LME_AH_Close on day d → plain raw price, belongs to that day only
   FX_ZARCHF on day d    → plain raw price, belongs to that day only
+
+---
+
+## Model Scores (Spearman Sharpe)
+
+| Model                          |               Score |
+|--------------------------------|---------------------|
+| Random predictions             |               -0.01 |
+| Baseline 1 — predict zero      |                 NaN |
+| Baseline 2 — predict yesterday |              2.3343 |
+| LightGBM CV (single target)    |                1.22 |
+| LightGBM lag 1                 |              5.4711 |
+| LightGBM lag 2                 |              4.3529 |
+| LightGBM lag 3                 |              4.9086 |
+| LightGBM lag 4                 |              4.6129 |
+| LightGBM overall               |              4.8364 |
+| Stacking ensemble lag 1        |              5.7926 |
+| Stacking ensemble lag 2        |              4.6785 |
+| Stacking ensemble lag 3        |              4.9842 |
+| Stacking ensemble lag 4        |              4.8601 |
+| Stacking ensemble overall      |              5.0789 |
+
+---
+
+## Stacking Ensemble Architecture
+
+```
+Original features (34 columns)
+       ↓
+  ┌────────────────────────────┐
+  │ LightGBM  → pred_lgbm     │  Level 0
+  │ RandomForest → pred_rf    │
+  │ XGBoost   → pred_xgb      │
+  └────────────────────────────┘
+       ↓
+  [pred_lgbm, pred_rf, pred_xgb]  ← 3 columns
+       ↓
+  XGBoost meta-model              Level 1
+       ↓
+  final prediction
+```
+
+### Level 0 — Base Learners
+
+**LightGBM** (`pred_lgbm`)
+A gradient boosting framework that builds trees leaf-wise rather than depth-wise. It is fast and memory-efficient on tabular data. It handles the 34 engineered features well and captures non-linear interactions between rolling returns, volatility, and price lags. `num_leaves=31`, `learning_rate=0.05`, `n_estimators=100`.
+
+**Random Forest** (`pred_rf`)
+An ensemble of independently trained decision trees, each trained on a random subset of features and bootstrap samples of data. Unlike boosting, trees are not corrected iteratively — diversity comes from randomness. It provides a structurally different signal to the meta-model, reducing overfitting risk in the stack. `n_estimators=100`, `max_depth=6`, `min_samples_leaf=5`.
+
+**XGBoost** (`pred_xgb`)
+A regularised gradient boosting implementation that builds trees depth-wise. It adds L1/L2 regularisation terms to the loss function, making it more robust to outliers than LightGBM on small datasets. Configured shallower (`max_depth=4`) than LightGBM to complement it rather than duplicate it. `n_estimators=100`, `learning_rate=0.05`.
+
+### Level 1 — Meta-Model
+
+**XGBoost meta-model**
+Takes the three base-learner predictions (`pred_lgbm`, `pred_rf`, `pred_xgb`) as its only input features and learns how to optimally blend them. Because the meta-model sees only 3 columns, it is kept deliberately small (`n_estimators=50`, `max_depth=3`) to avoid overfitting. It learns when to trust each base learner — for example, upweighting LightGBM when volatility is high, or Random Forest when the signal is noisy.
