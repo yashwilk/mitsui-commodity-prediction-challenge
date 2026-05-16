@@ -14,6 +14,8 @@ from lightgbm import LGBMRegressor
 from scipy.stats import spearmanr
 from tqdm import tqdm
 
+import os
+
 
 # ============================================================
 # Load data
@@ -211,13 +213,72 @@ print(f"Test shape: {test.shape}")
 
 # generate predictions
 print("\nGenerating predictions on test.csv...")
-test_predictions = predict_all_targets(test, train, models, target_info)
+test_predictions = predict_all_targets(test, models, target_info)
 
 print(f"\nPredictions shape: {test_predictions.shape}")
 print(f"Sample predictions (first 3 rows, first 5 targets):")
 print(test_predictions.iloc[:3, :5].to_string())
 print(f"\nAny NaN in predictions: {test_predictions.isnull().any().any()}")
 
+
+
+def evaluate_predictions(preds_df, data_path):
+    #predictions_df — the (134, 424) predictions DataFrame from Cell 5
+    lag_files = {
+        1: 'lagged_test_labels/test_labels_lag_1.csv',
+        2: 'lagged_test_labels/test_labels_lag_2.csv',
+        3: 'lagged_test_labels/test_labels_lag_3.csv',
+        4: 'lagged_test_labels/test_labels_lag_4.csv',
+    }
+
+    lag_score={}
+    for lag, file in lag_files.items():
+        filepath=os.path.join(data_path,file)
+
+        if not os.path.exists(filepath):
+            print(f"File not found: {filepath}")
+            continue
+
+        actuals= pd.read_csv(filepath)
+        print(f"Lag {lag} labels shape: {actuals.shape}")
+
+        actual_target_cols = [c for c in actuals.columns if c.startswith('target_')]
+        shared_targets = [c for c in actual_target_cols if c in preds_df.columns]
+        print(f"Lag {lag} shared targets: {len(shared_targets)}")
+
+        n_rows = min(len(preds_df),len(actuals))
+
+        preds_aligned=preds_df[shared_targets].iloc[:n_rows].reset_index(drop=True)
+        actuals_aligned=actuals[shared_targets].iloc[:n_rows].reset_index(drop=True)
+
+        score=spearman_sharpe(preds_aligned, actuals_aligned)
+        lag_score[lag]=score
+        print(f"Lag {lag} Spearman-Sharpe score: {score:.4f}")
+
+    valid_scores = [s for s in lag_score.values() if not np.isnan(s)]
+    overall = np.mean(valid_scores) if valid_scores else np.nan
+
+    return lag_score, overall
+
+
+# run evaluation
+print("Evaluating predictions against test labels...\n")
+lag_scores, overall_score = evaluate_predictions(test_predictions, DATA_PATH)
+
+# print final results table
+print("\n" + "=" * 55)
+print("FINAL RESULTS SUMMARY")
+print("=" * 55)
+print(f"{'Model':<40} {'Score':>10}")
+print("-" * 55)
+print(f"{'Random predictions':<40} {'-0.0100':>10}")
+print(f"{'Baseline 1 — predict zero':<40} {'NaN':>10}")
+print(f"{'Baseline 2 — predict yesterday':<40} {'2.3343':>10}")
+print(f"{'LightGBM CV (single target)':<40} {'1.2200':>10}")
+for lag, score in lag_scores.items():
+    print(f"{'LightGBM test score lag ' + str(lag):<40} {score:>10.4f}")
+print(f"{'LightGBM overall test score':<40} {overall_score:>10.4f}")
+print("=" * 55)
 
 
 

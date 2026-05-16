@@ -43,3 +43,6 @@ def preprocess_features(X_train, X_test=None):
         return X_train, X_test, imputer, scaler
 
     return X_train, imputer, scaler
+
+
+""""imputer, scaler has learned parameters from X_train, to be applied on X_test"""
