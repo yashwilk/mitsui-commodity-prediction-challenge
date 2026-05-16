@@ -13,6 +13,7 @@ from src.model import StackingModel
 
 from sklearn.model_selection import TimeSeriesSplit
 import os
+import joblib
 from tqdm import tqdm
 
 
@@ -89,7 +90,10 @@ print("Training 424 stacking models...")
 print("This will take longer than LightGBM — 3 base models + 1 meta model per target\n")
 stacking_models = train_all_stacking(target_info, train, label)
 
-
+# save stacking models dictionary
+os.makedirs('../models', exist_ok=True)
+joblib.dump(stacking_models, '../models/stacking_models.pkl')
+print("Stacking models saved to ../models/stacking_models.pkl")
 
 
 

@@ -15,6 +15,7 @@ from scipy.stats import spearmanr
 from tqdm import tqdm
 
 import os
+import joblib
 
 
 # ============================================================
@@ -135,7 +136,10 @@ print("Training 424 LightGBM models...")
 print("This will take a few minutes — one model per target\n")
 models = train_all_targets(train, label, target_info)
 
-
+# save models dictionary
+os.makedirs('../models', exist_ok=True)
+joblib.dump(models, '../models/lgbm_models.pkl')
+print("LightGBM models saved to ../models/lgbm_models.pkl")
 
 
 def predict_all_targets(test_df,  models_dict, target_info_list):
