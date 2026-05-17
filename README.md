@@ -24,9 +24,9 @@ MITSUI & CO., LTD. is one of Japan's largest trading companies. They trade physi
 
 My stacking ensemble achieved a 117% improvement over the predict-yesterday baseline and a 5% improvement over my single LightGBM model.
 
-![Model Performance Comparison](models/results_comparison.png)
+![Model Performance Comparison](assets/results_comparison.png)
 
-![LightGBM vs Stacking by Lag](models/lag_comparison.png)
+![LightGBM vs Stacking by Lag](assets/lag_comparison.png)
 
 ---
 

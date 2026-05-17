@@ -116,9 +116,9 @@ for bar, score in zip(bars, plot_data['Score']):
 
 ax.legend()
 plt.tight_layout()
-plt.savefig('../models/results_comparison.png', dpi=150, bbox_inches='tight')
+plt.savefig('../assets/results_comparison.png', dpi=150, bbox_inches='tight')
 plt.show()
-print("Plot saved to ../models/results_comparison.png")
+print("Plot saved to ../assets/results_comparison.png")
 
 
 #LAG PERFORMANCE ANALYSIS
@@ -177,6 +177,6 @@ for bar in bars2:
     )
 
 plt.tight_layout()
-plt.savefig('../models/lag_comparison.png', dpi=150, bbox_inches='tight')
+plt.savefig('../assets/lag_comparison.png', dpi=150, bbox_inches='tight')
 plt.show()
 print("Lag comparison plot saved")
