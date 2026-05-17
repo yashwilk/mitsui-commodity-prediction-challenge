@@ -224,6 +224,9 @@ print(f"Sample predictions (first 3 rows, first 5 targets):")
 print(test_predictions.iloc[:3, :5].to_string())
 print(f"\nAny NaN in predictions: {test_predictions.isnull().any().any()}")
 
+test_predictions.to_csv(DATA_PATH + 'models/lgbm_predictions.csv', index=False)
+print("Predictions saved to lgbm_predictions.csv")
+
 
 
 def evaluate_predictions(preds_df, data_path):

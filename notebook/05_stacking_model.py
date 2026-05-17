@@ -179,6 +179,8 @@ print(f"Sample predictions (first 3 rows, first 5 targets):")
 print(stacking_predictions.iloc[:3, :5].to_string())
 print(f"\nAny NaN in predictions: {stacking_predictions.isnull().any().any()}")
 
+stacking_predictions.to_csv(DATA_PATH + 'models/stacking_predictions.csv', index=False)
+print("Predictions saved to stacking_predictions.csv")
 
 
 

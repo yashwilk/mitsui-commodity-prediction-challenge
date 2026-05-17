@@ -3,7 +3,6 @@
 
 ---
 
-## What This Project Is
 
 This is a complete machine learning pipeline I built on the MITSUI&CO. Commodity Prediction Challenge from Kaggle. I approached it as a portfolio and learning project, not a live competition entry (the competition closed September 29, 2025).
 
@@ -25,6 +24,10 @@ MITSUI & CO., LTD. is one of Japan's largest trading companies. They trade physi
 
 My stacking ensemble achieved a 117% improvement over the predict-yesterday baseline and a 5% improvement over my single LightGBM model.
 
+![Model Performance Comparison](models/results_comparison.png)
+
+![LightGBM vs Stacking by Lag](models/lag_comparison.png)
+
 ---
 
 ## The Dataset
@@ -44,7 +47,7 @@ My stacking ensemble achieved a 117% improvement over the predict-yesterday base
 
 ### The date_id Column
 
-date_id is a single integer column I use to count trading days sequentially from 0 to 1960. No calendar dates are written — just sequential integers. Weekends and holidays have no rows. The label files additionally contain label_date_id which shows which future day the return is measured to. I always join files on date_id only — never on label_date_id.
+date_id is a single integer column I use to count trading days sequentially from 0 to 1960. No calendar dates are written just sequential integers. Weekends and holidays have no rows. The label files additionally contain label_date_id which shows which future day the return is measured to. I always join files on date_id only, never on label_date_id.
 
 ### The 557 Feature Columns
 
@@ -54,13 +57,13 @@ Price type suffixes: Open (start of day), High (daily peak), Low (daily trough),
 
 ### The Four Markets
 
-LME (London Metal Exchange) — base metals in USD per tonne. The 6 metals I work with: Copper (CA), Aluminium (AH), Zinc (ZS), Lead (PB), Nickel (NI), Tin (SN). Most important market in my dataset. Copper demand tracks global economic health — called "Dr Copper."
+LME (London Metal Exchange) — base metals in USD per tonne. The 6 metals I work with: Copper (CA), Aluminium (AH), Zinc (ZS), Lead (PB), Nickel (NI), Tin (SN). Most important market in my dataset. Copper demand tracks global economic health  called "Dr Copper."
 
-JPX (Japan Exchange Group) — Japanese equities and futures in JPY. Key instruments I use: Nikkei 225, TOPIX, Gold and Platinum futures. Japan is a massive metals importer. JPX has different holidays than LME — the primary reason I have 4 lag files.
+JPX (Japan Exchange Group) — Japanese equities and futures in JPY. Key instruments I use: Nikkei 225, TOPIX, Gold and Platinum futures. Japan is a massive metals importer. JPX has different holidays than LME the primary reason I have 4 lag files.
 
-US Stocks — American equity markets in USD. S&P 500, Dow Jones, Nasdaq, sector ETFs. I use these as macro sentiment signals — risk-on vs risk-off.
+US Stocks — American equity markets in USD. S&P 500, Dow Jones, Nasdaq, sector ETFs. I use these as macro sentiment signals risk-on vs risk-off.
 
-FX (Foreign Exchange) — currency pairs from Exchange Rates API by APILayer. Key pairs I work with: USD/JPY (most important — USD strength drives commodity prices down), EUR/USD, GBP/USD, AUD/USD (commodity currency — leads commodity prices), CNY/USD.
+FX (Foreign Exchange) — currency pairs from Exchange Rates API by APILayer. Key pairs I work with: USD/JPY (most important — USD strength drives commodity prices down), EUR/USD, GBP/USD, AUD/USD (commodity currency leads commodity prices), CNY/USD.
 
 The key FX relationship I exploit: commodities are priced in USD. When USD strengthens, commodities become more expensive for non-USD buyers, demand falls, prices fall. A weaker USD pushes commodity prices up.
 
@@ -415,18 +418,6 @@ mitsui-commodity-prediction-challenge/
 | scipy.stats | Spearman rank correlation for my metric |
 | joblib | I save and load my trained models |
 | tqdm | Progress bars so I can track training |
-
----
-
-## How to Run My Project
-
-```bash
-git clone https://github.com/yourusername/mitsui-commodity-prediction
-cd mitsui-commodity-prediction
-pip install pandas numpy matplotlib seaborn scikit-learn lightgbm xgboost scipy joblib tqdm
-```
-
-Download data from Kaggle and place in the data/ folder. Run my notebooks in order 01 through 06.
 
 ---
 
