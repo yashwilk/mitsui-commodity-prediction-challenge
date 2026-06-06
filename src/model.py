@@ -1,53 +1,61 @@
+import logging
+ 
 import numpy as np
 import pandas as pd
 from sklearn.ensemble import RandomForestRegressor
+from sklearn.model_selection import TimeSeriesSplit
 from lightgbm import LGBMRegressor
 from xgboost import XGBRegressor
+ 
+import config
+ 
+logger = logging.getLogger(__name__)
 
 
 class StackingModel:
-    def __init__(self, random_state=42):
+    def __init__(self, random_state: int = 42):
+        self.random_state = random_state
+        self.is_fitted    = False
         # base learners
-        self.lgbm = LGBMRegressor(
-            n_estimators     = 100,
-            learning_rate    = 0.05,
-            num_leaves       = 31,
-            subsample        = 0.8,
-            colsample_bytree = 0.8,
-            random_state     = random_state,
-            verbose          = -1
-        )
 
-        self.rf = RandomForestRegressor(
-            n_estimators = 100,
-            max_depth    = 6,
-            min_samples_leaf = 5,
-            random_state = random_state,
-            n_jobs       = -1
-        )
+        self.lgbm = LGBMRegressor(**{
+            **config.LGBM_PARAMS,
+            "random_state": random_state,
+        })
 
-        self.xgb = XGBRegressor(
-            n_estimators     = 100,
-            learning_rate    = 0.05,
-            max_depth        = 4,
-            subsample        = 0.8,
-            colsample_bytree = 0.8,
-            random_state     = random_state,
-            verbosity        = 0
-        )
+        self.rf = RandomForestRegressor(**{
+            **config.RF_PARAMS,
+            "random_state": random_state,
+        })
+    
+        self.xgb = XGBRegressor(**{
+            **config.XGB_PARAMS,
+            "random_state": random_state,
+        })
 
         # meta model
-        self.meta = XGBRegressor(
-            n_estimators = 50,
-            learning_rate = 0.05,
-            max_depth    = 3,
-            random_state = random_state,
-            verbosity    = 0
-        )
+        self.meta = XGBRegressor(**{
+            **config.XGB_META_PARAMS,
+            "random_state": random_state,
+        })
 
-        self.is_fitted = False
+    def _validate_fitted(self) -> None:
+        if not self.is_fitted:
+            raise ValueError(
+                "Model is not fitted yet — call fit() before predict()"
+            )
+        
 
-    def fit(self, X, y):
+  
+
+    def fit(self, X: pd.DataFrame, y: pd.Series) -> "StackingModel":
+        
+        if len(y) < config.MIN_TRAIN_SAMPLES:
+            raise ValueError(
+                f"Only {len(y)} samples — need at least "
+                f"{config.MIN_TRAIN_SAMPLES} to fit stacking model"
+            )
+        
         # Fit base learners
         self.lgbm.fit(X, y)
         self.rf.fit(X, y)
@@ -60,14 +68,14 @@ class StackingModel:
         return self
     
 
-    def predict(self, X):
-        if not self.is_fitted:
-            raise ValueError("Model must be fitted before prediction.")
-        meta_X = self._get_meta_features(X)
-        return self.meta.predict(meta_X)
+    def predict(self,  X: pd.DataFrame) -> np.ndarray:
+        self._validate_fitted()
+        meta_features = self._get_meta_features(X)
+        return self.meta.predict(meta_features)
+ 
 
 
-    def _get_meta_features(self, X):
+    def _get_meta_features(self,  X: pd.DataFrame) -> pd.DataFrame:
         return pd.DataFrame({
             'pred_lgbm': self.lgbm.predict(X),
             'pred_rf'  : self.rf.predict(X),

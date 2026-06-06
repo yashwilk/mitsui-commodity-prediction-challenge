@@ -1,22 +1,31 @@
-import pandas as pd
+import logging
+ 
 import numpy as np
+import pandas as pd
+ 
+import config
+ 
+logger = logging.getLogger(__name__)
 
-
-def parse_pair(pairs_df):
+# PARSE PAIRS
+# ============================================================
+def parse_pair(pairs_df: pd.DataFrame) -> list[dict]:
     """
     Parse target_pairs.csv into a list of dictionaries.
     Each dict contains target name, lag, and list of assets.
     """
+    if pairs_df.empty:
+        raise ValueError("pairs_df is empty — nothing to parse")
+
     parsed = []
     for _, row in pairs_df.iterrows():
-        target = row['target']
-        lag    = row['lag']
-        assets = [a.strip() for a in row['pair'].split(' - ')]
+        assets = [a.strip() for a in row["pair"].split(" - ") if a.strip()]
         parsed.append({
-            'target': target,
-            'lag'   : lag,
-            'assets': assets
+            "target": row["target"],
+            "lag"   : int(row["lag"]),
+            "assets": assets,
         })
+ 
     return parsed
 
 """{'target': 'target_0', 'lag': 1, 'assets': ['US_Stock_VT_adj_close']}
@@ -26,11 +35,31 @@ def parse_pair(pairs_df):
 {'target': 'target_4', 'lag': 1, 'assets': ['LME_AH_Close', 'JPX_Gold_Standard_Futures_Close']}"""
 
 
-def create_features_for_assets(df, asset_col):
+
+# SPREAD FEATURES
+# ============================================================
+def add_spread_features(
+    X: pd.DataFrame,
+    df: pd.DataFrame,
+    assets: list[str],
+) -> pd.DataFrame:
+    a1 = assets[0]
+    a2 = assets[1]
+    log_p1 = np.log(df[a1])
+    log_p2 = np.log(df[a2])
+    for window in config.SPREAD_WINDOWS:
+        X[f"spread_ret_{window}d"] = (
+            (log_p1.diff(window) - log_p2.diff(window)).shift(1)
+        )
+
+    return X
+
+
+def create_features_for_assets(df: pd.DataFrame, asset_col: str) -> pd.DataFrame:
     """
     Build 16 engineered features from one raw price column.
     All features shifted by 1 day to prevent leakage.
-    
+
     Features:
       - Log returns at 1, 3, 5, 10 day horizons
       - Rolling mean of returns at 5, 10, 20 day windows
@@ -38,6 +67,9 @@ def create_features_for_assets(df, asset_col):
       - Raw price differences at 1, 3, 5 days
       - Lagged price levels at 1, 3, 5 days
     """
+    if asset_col not in df.columns:
+        raise ValueError(f"Column '{asset_col}' not found in DataFrame")
+
     price     = df[asset_col].copy()
     log_price = np.log(price)
     log_ret   = log_price.diff(1)
@@ -45,30 +77,45 @@ def create_features_for_assets(df, asset_col):
     feature = pd.DataFrame(index=df.index)
 
     # log returns
-    feature[f'{asset_col}_log_ret_1d']  = log_price.diff(1).shift(1)
+    for w in config.LOG_RETURN_WINDOWS:
+        feature[f'{asset_col}_log_ret_{w}d'] = log_price.diff(w).shift(1)
+
+    """feature[f'{asset_col}_log_ret_1d']  = log_price.diff(1).shift(1)
     feature[f'{asset_col}_log_ret_3d']  = log_price.diff(3).shift(1)
     feature[f'{asset_col}_log_ret_5d']  = log_price.diff(5).shift(1)
-    feature[f'{asset_col}_log_ret_10d'] = log_price.diff(10).shift(1)
+    feature[f'{asset_col}_log_ret_10d'] = log_price.diff(10).shift(1)"""
 
     # rolling mean
-    feature[f'{asset_col}_roll_mean_5d']  = log_ret.rolling(5).mean().shift(1)
-    feature[f'{asset_col}_roll_mean_10d'] = log_ret.rolling(10).mean().shift(1)
-    feature[f'{asset_col}_roll_mean_20d'] = log_ret.rolling(20).mean().shift(1)
+    for w in config.ROLLING_WINDOWS:
+        feature[f"{asset_col}_roll_mean_{w}d"] = log_ret.rolling(w).mean().shift(1)
 
-    # rolling std
-    feature[f'{asset_col}_roll_std_5d']  = log_ret.rolling(5).std().shift(1)
+    """feature[f'{asset_col}_roll_mean_5d']  = log_ret.rolling(5).mean().shift(1)
+    feature[f'{asset_col}_roll_mean_10d'] = log_ret.rolling(10).mean().shift(1)
+    feature[f'{asset_col}_roll_mean_20d'] = log_ret.rolling(20).mean().shift(1)"""
+
+    # rolling std of returns (volatility)
+    for w in config.ROLLING_WINDOWS:
+        feature[f"{asset_col}_roll_std_{w}d"] = log_ret.rolling(w).std().shift(1)
+
+    """feature[f'{asset_col}_roll_std_5d']  = log_ret.rolling(5).std().shift(1)
     feature[f'{asset_col}_roll_std_10d'] = log_ret.rolling(10).std().shift(1)
-    feature[f'{asset_col}_roll_std_20d'] = log_ret.rolling(20).std().shift(1)
+    feature[f'{asset_col}_roll_std_20d'] = log_ret.rolling(20).std().shift(1)"""
 
     # raw price differences
-    feature[f'{asset_col}_diff_1d'] = price.diff(1).shift(1)
+    for w in config.PRICE_DIFF_WINDOWS:
+        feature[f"{asset_col}_diff_{w}d"] = price.diff(w).shift(1)
+
+    """feature[f'{asset_col}_diff_1d'] = price.diff(1).shift(1)
     feature[f'{asset_col}_diff_3d'] = price.diff(3).shift(1)
-    feature[f'{asset_col}_diff_5d'] = price.diff(5).shift(1)
+    feature[f'{asset_col}_diff_5d'] = price.diff(5).shift(1)"""
 
     # lagged price levels
-    feature[f'{asset_col}_price_lag1'] = price.shift(1)
+    for w in config.PRICE_LAG_WINDOWS:
+        feature[f"{asset_col}_price_lag{w}"] = price.shift(w)
+
+    """feature[f'{asset_col}_price_lag1'] = price.shift(1)
     feature[f'{asset_col}_price_lag3'] = price.shift(3)
-    feature[f'{asset_col}_price_lag5'] = price.shift(5)
+    feature[f'{asset_col}_price_lag5'] = price.shift(5)"""
 
     return feature
 
@@ -84,7 +131,11 @@ def create_features_for_assets(df, asset_col):
 
 
 
-def build_dataset_for_target(train_df, label_df, target_dict):
+def build_dataset_for_target(
+    train_df: pd.DataFrame,
+    label_df: pd.DataFrame,
+    target_dict: dict,
+) -> tuple[pd.DataFrame, pd.Series]:
     """
     Build complete feature matrix X and label vector y
     for one specific target.
@@ -103,23 +154,28 @@ def build_dataset_for_target(train_df, label_df, target_dict):
             continue
         feat = create_features_for_assets(train_df, asset)
         all_features.append(feat)
+    if not all_features:
+        raise ValueError(
+            f"No valid assets found for target '{target_name}' — "
+            f"assets requested: {assets}"
+        )
 
     X = pd.concat(all_features, axis=1)
 
     # add spread features for two-asset targets
     if len(assets) == 2:
-        a1     = assets[0]
-        a2     = assets[1]
-        log_p1 = np.log(train_df[a1])
-        log_p2 = np.log(train_df[a2])
-        X['spread_ret_1d'] = (log_p1.diff(1) - log_p2.diff(1)).shift(1)
-        X['spread_ret_5d'] = (log_p1.diff(5) - log_p2.diff(5)).shift(1)
-
+        X = add_spread_features(X, train_df, assets)
+ 
     y    = label_df[target_name].copy()
     mask = ~y.isna()
     X    = X[mask]
     y    = y[mask]
 
+    logger.debug(
+        "Built dataset for '%s' — X: %s | y: %s",
+        target_name, X.shape, y.shape,
+    )
+ 
     return X, y
 
 

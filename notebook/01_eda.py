@@ -10,8 +10,8 @@ sns.set_style('whitegrid')
 print('Libraries imported successfully!')
 
 DATA_PATH='../'
-train=pd.read_csv(DATA_PATH+'train.csv') #
-test=pd.read_csv(DATA_PATH+'test.csv')
+train=pd.read_csv(DATA_PATH+'train.csv') #raw data
+test=pd.read_csv(DATA_PATH+'test.csv')#raw data
 label=pd.read_csv(DATA_PATH+'train_labels.csv')
 pairs=pd.read_csv(DATA_PATH+'target_pairs.csv')
 
@@ -52,8 +52,8 @@ print(label['target_0'].head(10).to_string())
 
 unique_assets=set()
 
-for pairs in pairs['pair']:
-    assets=pairs.split(' - ')
+for pair_str in pairs['pair']:
+    assets=pair_str.split(' - ')
     for asset in assets:
         unique_assets.add(asset.strip())
 print(f"Unique assets in pairs: {unique_assets}")

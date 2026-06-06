@@ -1,0 +1,77 @@
+# ============================================================
+# .dockerignore
+# ============================================================
+# Tells Docker which files to EXCLUDE when building the image.
+# Works exactly like .gitignore but for Docker.
+# Smaller image = faster builds and less storage used.
+# ============================================================
+
+# ── PYTHON CACHE ─────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.so
+
+# ── VIRTUAL ENVIRONMENTS ─────────────────────────────────
+.venv/
+venv/
+env/
+ENV/
+
+# ── DATA FILES ───────────────────────────────────────────
+# data is mounted as a volume at runtime — not baked into image
+# keeping large CSVs out of the image keeps it small
+data/
+*.csv
+*.parquet
+*.feather
+
+# ── MODEL FILES ──────────────────────────────────────────
+# models are saved to mounted volume at runtime
+models/
+*.pkl
+*.joblib
+*.h5
+
+# ── MLFLOW ───────────────────────────────────────────────
+mlruns/
+
+# ── LOGS ─────────────────────────────────────────────────
+logs/
+*.log
+
+# ── ASSETS ───────────────────────────────────────────────
+assets/
+
+# ── NOTEBOOKS ────────────────────────────────────────────
+# notebooks are for exploration only — not needed in production
+notebook/
+*.ipynb
+.ipynb_checkpoints/
+
+# ── GIT ──────────────────────────────────────────────────
+.git/
+.gitignore
+
+# ── IDE ──────────────────────────────────────────────────
+.vscode/
+.idea/
+*.code-workspace
+
+# ── OS FILES ─────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ── DOCKER FILES THEMSELVES ──────────────────────────────
+# no need to copy these into the image
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# ── TESTS ────────────────────────────────────────────────
+# tests run in CI not inside the production image
+tests/
+pytest.ini
+.coverage
