@@ -95,6 +95,7 @@ XGB_PARAMS = {
 }
 
 
+
 # XGBOOST META-MODEL HYPERPARAMETERS
 # ============================================================
  
@@ -105,6 +106,23 @@ XGB_META_PARAMS = {
     "random_state" : 42,
     "verbosity"    : 0,
 }
+
+# TRANSFORMER HYPERPARAMETERS
+# ============================================================
+
+TRANSFORMER_PARAMS={
+    "d_model":64,# embedding dimension
+    "n_heads":8,
+    "n_layers":4, # number of encoder layers
+    "d_ff":256, # feedforward dimension inside each encoder block
+    "dropout":0.1,
+    "learning_rate":1e-4,
+    "weight_decay":1e-4,   # AdamW weight decay (L2 regularisation)
+    "n_epoch":50,
+    "batch_size":64
+
+}
+
 
 
 # CROSS-VALIDATION

@@ -1,0 +1,122 @@
+# ============================================================
+# docker-compose.yml
+# ============================================================
+# Runs all services together with one command: docker compose up
+# ============================================================
+
+services:
+
+  # ── MLFLOW SERVER ────────────────────────────────────────
+  # starts the MLflow tracking UI at http://localhost:5000
+  # train, predict and evaluate all log their runs here
+  mlflow:
+    image: python:3.11-slim
+    container_name: mitsui-mlflow
+    command: >
+      bash -c "pip install mlflow==2.13.0 -q &&
+               mlflow server
+               --host 0.0.0.0
+               --port 5000
+               --backend-store-uri /app/mlruns
+               --default-artifact-root /app/mlruns"
+    ports:
+      - "5000:5000"         # http://localhost:5000 in your browser
+    volumes:
+      - ./mlruns:/app/mlruns  # mlflow data persists on your machine
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── TRAIN ────────────────────────────────────────────────
+  # trains all 424 LightGBM models and logs to MLflow
+  train:
+    build: .                  # builds image from Dockerfile in current folder
+    container_name: mitsui-train
+    command: python train.py --model lgbm
+    depends_on:
+      mlflow:
+        condition: service_healthy   # waits for MLflow to be ready first
+    environment:
+      - MLFLOW_TRACKING_URI=http://mlflow:5000   # mlflow = service name above
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./data:/app/data        # reads train.csv, test.csv from your machine
+      - ./models:/app/models    # saves lgbm_models.pkl to your machine
+      - ./logs:/app/logs        # saves training.log to your machine
+
+  # ── TRAIN STACKING ───────────────────────────────────────
+  # separate service for stacking model — runs independently
+  train-stacking:
+    build: .
+    container_name: mitsui-train-stacking
+    command: python train.py --model stacking
+    depends_on:
+      mlflow:
+        condition: service_healthy
+    environment:
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./data:/app/data
+      - ./models:/app/models
+      - ./logs:/app/logs
+
+  # ── PREDICT ─────────────────────────────────────────────
+  # loads saved models and generates predictions on test.csv
+  predict:
+    build: .
+    container_name: mitsui-predict
+    command: python predict.py --model lgbm
+    depends_on:
+      mlflow:
+        condition: service_healthy
+    environment:
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./data:/app/data
+      - ./models:/app/models
+      - ./logs:/app/logs
+
+  # ── EVALUATE ────────────────────────────────────────────
+  # scores predictions against lag label files
+  evaluate:
+    build: .
+    container_name: mitsui-evaluate
+    command: python evaluate.py --model both
+    depends_on:
+      mlflow:
+        condition: service_healthy
+    environment:
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./data:/app/data
+      - ./models:/app/models
+      - ./logs:/app/logs
+      - ./assets:/app/assets    # saves comparison charts here
+
+# ── VOLUMES ───────────────────────────────────────────────
+# named volumes are managed by Docker
+# bind mounts (./data:/app/data) are folders on your machine
+# we use bind mounts so all output files are directly
+# accessible on your machine without any extra commands
+
+  # ── TRAIN TRANSFORMER ───────────────────────────────────────
+  # trains transformer model — runs independently
+  train-transformer:
+    build: .
+    container_name: mitsui-train-transformer
+    command: python train.py --model transformer
+    depends_on:
+      mlflow:
+        condition: service_healthy
+    environment:
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./data:/app/data
+      - ./models:/app/models
+      - ./logs:/app/logs
