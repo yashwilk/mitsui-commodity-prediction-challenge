@@ -30,6 +30,53 @@ My stacking ensemble achieved a 117% improvement over the predict-yesterday base
 
 ---
 
+## Production Engineering
+
+This project is built as a production-ready ML pipeline with:
+
+- **MLflow** — every training run tracked with parameters, metrics and artifacts
+- **Docker** — fully containerised, runs identically on any machine
+- **CI/CD** — GitHub Actions runs tests and linting on every push
+- **pytest** — 12 unit tests covering preprocessing, metrics and model behaviour
+
+### Quick start — local
+
+```bash
+pip install -r requirements.txt
+
+python train.py   --model lgbm
+python train.py   --model stacking
+python train.py   --model transformer
+
+python predict.py --model lgbm
+python evaluate.py --model all
+```
+
+### Quick start — Docker
+
+```bash
+docker build -t mitsui .
+docker compose up mlflow -d
+docker compose up train
+docker compose up predict
+docker compose up evaluate
+docker compose down
+```
+
+### MLflow UI
+
+`http://localhost:5000`
+
+Every run logs hyperparameters, per-lag scores, training time and saved model files. All three models are comparable side by side in the experiment view.
+
+### Running tests
+
+```bash
+pytest tests/ --tb=short
+```
+
+---
+
 ## The Dataset
 
 ### Files
@@ -346,6 +393,18 @@ Takes the three base-learner predictions (`pred_lgbm`, `pred_rf`, `pred_xgb`) as
 
 My overall score was 5.08 — beating LightGBM on every single lag.
 
+#### Transformer Encoder (new)
+
+PyTorch multi-head self-attention model. Each of the 34 features is treated as a token. Learned positional embeddings. 4 encoder layers, 8 attention heads, d_model=64. Trained with AdamW + CosineAnnealingLR + gradient clipping.
+
+```
+34 features → Feature Embedding (34×64) → Learned Positional Embedding
+           → 4× TransformerEncoderLayer (multi-head attention)
+           → Global Average Pooling → Linear → predicted return
+```
+
+Score: TBD — run `python evaluate.py --model all` after training to compare.
+
 ---
 
 ### My Validation Strategy
@@ -365,42 +424,47 @@ I use CV to estimate performance, then retrain on the full history for my final 
 ## Project Structure
 
 ```
-mitsui-commodity-prediction-challenge/
-│
-├── data/
-│   ├── train.csv
-│   ├── train_labels.csv
-│   ├── test.csv
-│   ├── target_pairs.csv
-│   └── lagged_test_labels/
-│       ├── test_labels_lag_1.csv
-│       ├── test_labels_lag_2.csv
-│       ├── test_labels_lag_3.csv
-│       └── test_labels_lag_4.csv
-│
-├── models/
-│   ├── lgbm_models.pkl
-│   ├── stacking_models.pkl
-│   ├── lgbm_predictions.csv
-│   └── stacking_predictions.csv
-│
-├── notebooks/
-│   ├── 01_eda.py                 ← I explore the data
-│   ├── 02_feature_engineering.py ← I test and validate features
-│   ├── 03_baseline_model.py      ← I establish benchmarks
-│   ├── 04_lgbm_model.py          ← I train LightGBM models
-│   ├── 05_stacking_model.py      ← I build the stacking ensemble
-│   └── 06_evaluation_writeup.py  ← I analyse and present results
+MITSUI-COMMODITY-PREDICTION-CHALLENGE/
 │
 ├── src/
-│   ├── __init__.py          ← package registration
-│   ├── features.py          ← my feature engineering functions
-│   ├── metrics.py           ← my Spearman-Sharpe metric
-│   ├── models.py            ← my StackingModel class
-│   └── preprocessing.py     ← my preprocessing pipeline
+│   ├── config.py          all hyperparameters and file paths
+│   ├── features.py        feature engineering functions
+│   ├── preprocessing.py   imputation and scaling pipeline
+│   ├── model.py           StackingModel class
+│   ├── transformer.py     TransformerModel (PyTorch)
+│   ├── metrics.py         Spearman-Sharpe metric
+│   └── __init__.py
 │
-├── .gitignore
-└── README.md
+├── tests/
+│   ├── conftest.py        shared synthetic data fixtures
+│   ├── test_preprocessing.py
+│   ├── test_metrics.py
+│   └── test_model.py
+│
+├── notebook/
+│   ├── 01_eda.py
+│   ├── 02_feature_engineering.py
+│   ├── 03_baseline_model.py
+│   ├── 04_lgbm_model.py
+│   ├── 05_stacking_model.py
+│   └── 06_evaluation_writeup.py
+│
+├── train.py               training entry point
+├── predict.py             inference entry point
+├── evaluate.py            evaluation entry point
+├── Dockerfile
+├── docker-compose.yml
+├── requirements.txt
+│
+├── .github/
+│   └── workflows/
+│       ├── ci.yml         runs on every push
+│       └── cd.yml         runs on merge to main
+│
+├── data/                  place CSV files here (gitignored)
+├── models/                trained models saved here (gitignored)
+├── logs/                  training logs (gitignored)
+└── assets/                charts and plots
 ```
 
 ---

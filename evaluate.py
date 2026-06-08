@@ -122,9 +122,12 @@ def plot_lag_comparison(
 def run_evaluation(model_type: str) -> tuple[dict, float]:
     if model_type == "lgbm":
         predictions_file = config.LGBM_PREDICTIONS_FILE
-    else:
+    elif model_type == "stacking":
         predictions_file = config.STACKING_PREDICTIONS_FILE
-
+    elif model_type == "transformer":
+        predictions_file = config.TRANSFORMER_PREDICTIONS_FILE
+    else:
+        raise ValueError(f"Unknown model type: {model_type}")
     if not predictions_file.exists():
         raise FileNotFoundError(
             f"No predictions found at {predictions_file}. "
@@ -184,7 +187,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--model",
         type=str,
-        choices=["lgbm", "stacking", "both"],
+        choices=["lgbm", "stacking", "transformer", "all"],
         default="lgbm",
         help="Which model predictions to evaluate (default: lgbm)",
     )
@@ -193,7 +196,7 @@ def parse_args() -> argparse.Namespace:
 
 if __name__ == "__main__":
     args = parse_args()
-    if args.model == "both":
+    if args.model == "all":
         lgbm_lag_scores,     lgbm_overall     = run_evaluation("lgbm")
         stacking_lag_scores, stacking_overall  = run_evaluation("stacking")
         # plot comparison chart only when both are evaluated
