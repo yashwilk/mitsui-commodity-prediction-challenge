@@ -26,6 +26,8 @@ LGBM_PREDICTIONS_FILE     = MODELS_DIR / "lgbm_predictions.csv"
 STACKING_PREDICTIONS_FILE = MODELS_DIR / "stacking_predictions.csv"
 LGBM_MODELS_FILE          = MODELS_DIR / "lgbm_models.pkl"
 STACKING_MODELS_FILE      = MODELS_DIR / "stacking_models.pkl"
+TRANSFORMER_MODELS_FILE      = MODELS_DIR / "transformer_models.pkl"
+TRANSFORMER_PREDICTIONS_FILE = MODELS_DIR / "transformer_predictions.csv"
 
 
 # MLFLOW
@@ -118,7 +120,7 @@ TRANSFORMER_PARAMS={
     "dropout":0.1,
     "learning_rate":1e-4,
     "weight_decay":1e-4,   # AdamW weight decay (L2 regularisation)
-    "n_epoch":50,
+    "n_epochs":50,
     "batch_size":64
 
 }
