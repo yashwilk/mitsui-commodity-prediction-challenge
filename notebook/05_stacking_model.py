@@ -17,7 +17,7 @@ import joblib
 from tqdm import tqdm
 
 
-DATA_PATH = '../'
+DATA_PATH = '../data/'
 
 train  = pd.read_csv(DATA_PATH + 'train.csv')
 label  = pd.read_csv(DATA_PATH + 'train_labels.csv')

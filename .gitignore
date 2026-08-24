@@ -27,10 +27,11 @@ ENV/
 .ipynb_checkpoints/
 *.ipynb
 
-# Data files (large CSVs — track with Git LFS or exclude)
-# Uncomment the lines below if you don't want to commit data
-# *.csv
+# Data files — large competition CSVs, fetch from Kaggle instead of committing
+# (data/target_pairs.csv is kept tracked: it's a small reference/mapping file, not raw data)
 data/*.csv
+data/lagged_test_labels/*.csv
+!data/target_pairs.csv
 
 # IDEs
 .vscode/
@@ -53,3 +54,11 @@ models/
 # Logs
 *.log
 logs/
+
+# MLflow
+mlruns/
+mlflow.db
+
+# Test cache
+.pytest_cache/
+.coverage

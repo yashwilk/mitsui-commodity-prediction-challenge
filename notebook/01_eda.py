@@ -9,7 +9,7 @@ sns.set_style('whitegrid')
 
 print('Libraries imported successfully!')
 
-DATA_PATH='../'
+DATA_PATH='../data/'
 train=pd.read_csv(DATA_PATH+'train.csv') #raw data
 test=pd.read_csv(DATA_PATH+'test.csv')#raw data
 label=pd.read_csv(DATA_PATH+'train_labels.csv')

@@ -5,6 +5,7 @@ from pathlib import Path
 
 ROOT_DIR   = Path(__file__).resolve().parent
 SRC_DIR    = ROOT_DIR / "src"
+DATA_DIR   = ROOT_DIR / "data"
 MODELS_DIR = ROOT_DIR / "models"
 LOGS_DIR   = ROOT_DIR / "logs"
 ASSETS_DIR = ROOT_DIR / "assets"
@@ -13,12 +14,12 @@ ASSETS_DIR = ROOT_DIR / "assets"
 for _dir in [MODELS_DIR, LOGS_DIR, ASSETS_DIR]:
     _dir.mkdir(parents=True, exist_ok=True)
 
-# input files 
-TRAIN_FILE     = ROOT_DIR / "train.csv"
-TEST_FILE      = ROOT_DIR / "test.csv"
-LABEL_FILE     = ROOT_DIR / "train_labels.csv"
-PAIRS_FILE     = ROOT_DIR / "target_pairs.csv"
-LAG_LABELS_DIR = ROOT_DIR / "lagged_test_labels"
+# input files
+TRAIN_FILE     = DATA_DIR / "train.csv"
+TEST_FILE      = DATA_DIR / "test.csv"
+LABEL_FILE     = DATA_DIR / "train_labels.csv"
+PAIRS_FILE     = DATA_DIR / "target_pairs.csv"
+LAG_LABELS_DIR = DATA_DIR / "lagged_test_labels"
 
 
 # output files

@@ -15,7 +15,7 @@ from src.features import parse_pair
 sns.set_theme(style='whitegrid')
 plt.rcParams['figure.figsize'] = (12, 6)
 
-DATA_PATH  = '../'
+DATA_PATH  = '../data/'
 MODEL_PATH = '../models/'
 
 train  = pd.read_csv(DATA_PATH + 'train.csv')
