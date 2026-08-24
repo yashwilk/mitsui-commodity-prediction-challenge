@@ -37,7 +37,7 @@ This project is built as a production-ready ML pipeline with:
 - **MLflow** — every training run tracked with parameters, metrics and artifacts
 - **Docker** — fully containerised, runs identically on any machine
 - **CI/CD** — GitHub Actions runs tests and linting on every push
-- **pytest** — 12 unit tests covering preprocessing, metrics and model behaviour
+- **pytest** — 18 unit tests covering preprocessing, metrics and model behaviour
 
 ### Quick start — local
 
@@ -49,7 +49,13 @@ python train.py   --model stacking
 python train.py   --model transformer
 
 python predict.py --model lgbm
+python predict.py --model stacking
+python predict.py --model transformer
+
+# --model all scores and charts lgbm vs stacking only
 python evaluate.py --model all
+# transformer is evaluated separately (no baked-in comparison chart yet)
+python evaluate.py --model transformer
 ```
 
 ### Quick start — Docker
@@ -427,7 +433,6 @@ I use CV to estimate performance, then retrain on the full history for my final 
 MITSUI-COMMODITY-PREDICTION-CHALLENGE/
 │
 ├── src/
-│   ├── config.py          all hyperparameters and file paths
 │   ├── features.py        feature engineering functions
 │   ├── preprocessing.py   imputation and scaling pipeline
 │   ├── model.py           StackingModel class
@@ -442,24 +447,29 @@ MITSUI-COMMODITY-PREDICTION-CHALLENGE/
 │   └── test_model.py
 │
 ├── notebook/
+│   ├── 00_verify_imports.py
 │   ├── 01_eda.py
 │   ├── 02_feature_engineering.py
 │   ├── 03_baseline_model.py
 │   ├── 04_lgbm_model.py
 │   ├── 05_stacking_model.py
-│   └── 06_evaluation_writeup.py
+│   ├── 06_evaluation_writeup.py
+│   └── 07_positional_embedding_reference.py
 │
+├── kaggle_evaluation/     vendored Kaggle offline-inference gateway/server
+│
+├── config.py              all hyperparameters and file paths
 ├── train.py               training entry point
 ├── predict.py             inference entry point
 ├── evaluate.py            evaluation entry point
+├── pytest.ini
 ├── Dockerfile
 ├── docker-compose.yml
 ├── requirements.txt
 │
 ├── .github/
 │   └── workflows/
-│       ├── ci.yml         runs on every push
-│       └── cd.yml         runs on merge to main
+│       └── ci.yml         runs tests, lint and a Docker build on every push
 │
 ├── data/                  place CSV files here (gitignored)
 ├── models/                trained models saved here (gitignored)
@@ -502,8 +512,4 @@ MITSUI-COMMODITY-PREDICTION-CHALLENGE/
 ## References
 
 - Kaggle Competition: https://www.kaggle.com/competitions/mitsui-commodity-prediction-challenge
-- Demo Submission Notebook: https://www.kaggle.com/code/sohier/mitsui-demo-submission/
 - Metric Source Code: https://www.kaggle.com/code/metric/mitsui-co-commodity-prediction-metric
-- 3rd Place Solution Writeup: competition discussion forum
-- AlpacaTech Co., Ltd. — problem design and data creation
-- Exchange Rates API by APILayer — Forex data source
