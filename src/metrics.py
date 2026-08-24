@@ -1,8 +1,16 @@
+ 
+import logging
+ 
 import numpy as np
+import pandas as pd
 from scipy.stats import spearmanr
+ 
+logger = logging.getLogger(__name__)
 
-
-def spearman_sharpe(predictions_df, actuals_df):
+def spearman_sharpe(
+    predictions_df: pd.DataFrame,
+    actuals_df: pd.DataFrame,
+) -> float:
     """
     Competition metric — Sharpe ratio of daily Spearman correlations.
     
@@ -12,6 +20,17 @@ def spearman_sharpe(predictions_df, actuals_df):
     
     Higher is better. Above 1.0 is good. Above 2.0 is excellent.
     """
+
+    if predictions_df.empty or actuals_df.empty:
+        raise ValueError("predictions_df and actuals_df must not be empty")
+ 
+    if predictions_df.shape != actuals_df.shape:
+        raise ValueError(
+            f"Shape mismatch — predictions: {predictions_df.shape}, "
+            f"actuals: {actuals_df.shape}"
+        )
+    
+
     daily_corrs = []
 
     for i in range(len(predictions_df)):
@@ -36,4 +55,11 @@ def spearman_sharpe(predictions_df, actuals_df):
     if std < 1e-8:
         return 0.0
 
-    return float(mean / std)
+    score = float(mean / std)
+ 
+    logger.debug(
+        "Spearman-Sharpe: %.4f (mean=%.4f, std=%.4f, n_days=%d)",
+        score, mean, std, len(daily_corrs),
+    )
+ 
+    return score
