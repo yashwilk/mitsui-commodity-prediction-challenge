@@ -120,6 +120,9 @@ def run_prediction(model_type: str) -> None:
     if model_type == "lgbm":
         models_file      = config.LGBM_MODELS_FILE
         predictions_file = config.LGBM_PREDICTIONS_FILE
+    elif model_type == "transformer":
+        models_file      = config.TRANSFORMER_MODELS_FILE
+        predictions_file = config.TRANSFORMER_PREDICTIONS_FILE
     else:
         models_file      = config.STACKING_MODELS_FILE
         predictions_file = config.STACKING_PREDICTIONS_FILE
@@ -205,7 +208,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--model",
         type=str,
-        choices=["lgbm", "stacking"],
+        choices=["lgbm", "stacking", "transformer"],
         default="lgbm",
         help="Which model to use for predictions (default: lgbm)",
     )

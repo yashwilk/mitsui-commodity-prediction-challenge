@@ -1,6 +1,5 @@
 import argparse
 import logging
-import os
 import sys
 import time
 import joblib
@@ -14,16 +13,18 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 from lightgbm import LGBMRegressor
- 
+
 import config
 from src.features import parse_pair, build_dataset_for_target
 from src.preprocessing import preprocess_features
 from src.model import StackingModel
+from src.transformer import TransformerModel
 from src.metrics import spearman_sharpe
 
+# ============================================================
 # LOGGING
 # ============================================================
- 
+
 logging.basicConfig(
     level=logging.INFO,
     format=config.LOG_FORMAT,
@@ -35,36 +36,48 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# TRAIN LGBM
+
 # ============================================================
- 
-def train_lgbm(
-    train_df: pd.DataFrame,
-    label_df: pd.DataFrame,
+# SHARED TRAINING LOOP
+# ============================================================
+
+def train_all(
+    train_df   : pd.DataFrame,
+    label_df   : pd.DataFrame,
     target_info: list,
+    model_type : str,
 ) -> dict:
     """
-    Train one LightGBM model per target (424 total).
-    Returns a dict of fitted models keyed by target name.
+    Train one model per target (424 total).
+    Works for lgbm, stacking and transformer.
+    Returns dict of fitted models keyed by target name.
     """
     models = {}
- 
-    for t in tqdm(target_info, desc="Training LightGBM models"):
+
+    for t in tqdm(target_info, desc=f"Training {model_type} models"):
         target_name = t["target"]
         try:
             X, y = build_dataset_for_target(train_df, label_df, t)
- 
+
             if len(y) < config.MIN_TRAIN_SAMPLES:
                 logger.warning(
                     "Skipping %s — only %d samples", target_name, len(y)
                 )
                 continue
- 
+
             X_processed, imputer, scaler = preprocess_features(X)
- 
-            model = LGBMRegressor(**config.LGBM_PARAMS)
+
+            if model_type == "lgbm":
+                model = LGBMRegressor(**config.LGBM_PARAMS)
+            elif model_type == "stacking":
+                model = StackingModel(random_state=config.CV_RANDOM_SEED)
+            elif model_type == "transformer":
+                model = TransformerModel(random_state=config.CV_RANDOM_SEED)
+            else:
+                raise ValueError(f"Unknown model type: {model_type}")
+
             model.fit(X_processed, y)
- 
+
             models[target_name] = {
                 "model"  : model,
                 "imputer": imputer,
@@ -72,66 +85,34 @@ def train_lgbm(
                 "assets" : t["assets"],
                 "lag"    : t["lag"],
             }
- 
+
         except Exception as e:
             logger.error("Error training %s: %s", target_name, e)
             continue
- 
-    logger.info("Trained %d / %d LightGBM models", len(models), len(target_info))
-    return models
- 
-# TRAIN STACKING
-# ============================================================
- 
-def train_stacking(
-    train_df: pd.DataFrame,
-    label_df: pd.DataFrame,
-    target_info: list,
-) -> dict:
-    """
-    Train one StackingModel per target (424 total).
-    Returns a dict of fitted models keyed by target name.
-    """
-    models = {}
- 
-    for t in tqdm(target_info, desc="Training Stacking models"):
-        target_name = t["target"]
-        try:
-            X, y = build_dataset_for_target(train_df, label_df, t)
- 
-            if len(y) < config.MIN_TRAIN_SAMPLES:
-                logger.warning(
-                    "Skipping %s — only %d samples", target_name, len(y)
-                )
-                continue
- 
-            X_processed, imputer, scaler = preprocess_features(X)
- 
-            model = StackingModel(random_state=config.CV_RANDOM_SEED)
-            model.fit(X_processed, y)
- 
-            models[target_name] = {
-                "model"  : model,
-                "imputer": imputer,
-                "scaler" : scaler,
-                "assets" : t["assets"],
-                "lag"    : t["lag"],
-            }
- 
-        except Exception as e:
-            logger.error("Error training %s: %s", target_name, e)
-            continue
- 
-    logger.info("Trained %d / %d Stacking models", len(models), len(target_info))
+
+    logger.info(
+        "Trained %d / %d %s models",
+        len(models), len(target_info), model_type,
+    )
     return models
 
+
+# ============================================================
+# MLFLOW TRAINING RUN
+# ============================================================
 
 def run_training(model_type: str) -> None:
+    """
+    Full training pipeline wrapped in a single MLflow run.
+    Works for lgbm, stacking and transformer.
+    """
+
+    # ── load data ───────────────────────────────────────────
     logger.info("Loading data...")
     train_df    = pd.read_csv(config.TRAIN_FILE)
     label_df    = pd.read_csv(config.LABEL_FILE)
     pairs_df    = pd.read_csv(config.PAIRS_FILE)
-    target_info = parse_pair(pairs_df)
+    target_info = parse_pair(pairs_df)                                                      #{'target': 'target_1', 'lag': 1, 'assets': ['LME_PB_Close', 'US_Stock_VT_adj_close']}
 
     logger.info(
         "Data loaded — train: %s | labels: %s | targets: %d",
@@ -140,26 +121,22 @@ def run_training(model_type: str) -> None:
 
     # ── MLflow setup ────────────────────────────────────────
     mlflow.set_tracking_uri(config.MLFLOW_TRACKING_URI)
-
-    # creates the experiment if it doesn't exist yet
     mlflow.set_experiment(config.MLFLOW_EXPERIMENT)
 
-    # RUN — everything inside this block is logged to one run
     with mlflow.start_run(run_name=f"{model_type}_{int(time.time())}"):
 
-        # useful for filtering runs by model type, owner etc
+        # ── TAGS ────────────────────────────────────────────
         mlflow.set_tags({
             "model_type"    : model_type,
             "python_version": sys.version.split()[0],
             "dataset"       : "mitsui-commodity",
         })
 
-        # ── PARAMS — log all hyperparameters BEFORE training ─
+        # ── PARAMS ──────────────────────────────────────────
         if model_type == "lgbm":
             mlflow.log_params(config.LGBM_PARAMS)
 
         elif model_type == "stacking":
-            # flatten nested params into a single dict for MLflow
             mlflow.log_params({
                 **{f"lgbm_{k}" : v for k, v in config.LGBM_PARAMS.items()},
                 **{f"rf_{k}"   : v for k, v in config.RF_PARAMS.items()},
@@ -168,7 +145,9 @@ def run_training(model_type: str) -> None:
                 "cv_n_splits"  : config.CV_N_SPLITS,
             })
 
-        # log shared params
+        elif model_type == "transformer":
+            mlflow.log_params(config.TRANSFORMER_PARAMS)
+
         mlflow.log_params({
             "n_targets"         : len(target_info),
             "min_train_samples" : config.MIN_TRAIN_SAMPLES,
@@ -178,18 +157,21 @@ def run_training(model_type: str) -> None:
             "log_return_windows": str(config.LOG_RETURN_WINDOWS),
         })
 
+        # ── TRAINING ────────────────────────────────────────
         start = time.time()
 
+        models = train_all(train_df, label_df, target_info, model_type)
+
         if model_type == "lgbm":
-            models      = train_lgbm(train_df, label_df, target_info)
             models_file = config.LGBM_MODELS_FILE
-        else:
-            models      = train_stacking(train_df, label_df, target_info)
+        elif model_type == "stacking":
             models_file = config.STACKING_MODELS_FILE
+        elif model_type == "transformer":
+            models_file = config.TRANSFORMER_MODELS_FILE
 
         elapsed = time.time() - start
 
-        # ── METRICS — log outputs AFTER training ─────────────
+        # ── METRICS ─────────────────────────────────────────
         mlflow.log_metrics({
             "models_trained"   : len(models),
             "models_skipped"   : len(target_info) - len(models),
@@ -199,26 +181,25 @@ def run_training(model_type: str) -> None:
 
         logger.info("Training complete in %.1fs", elapsed)
 
-        # ── SAVE MODELS ───────────────────────────────────────
+        # ── SAVE MODELS ──────────────────────────────────────
         config.MODELS_DIR.mkdir(parents=True, exist_ok=True)
         joblib.dump(models, models_file)
         logger.info("Models saved to %s", models_file)
 
-        # ── ARTIFACTS — attach files to the run ──────────────
+        # ── ARTIFACTS ───────────────────────────────────────
         mlflow.log_artifact(str(models_file))
         mlflow.log_artifact(str(config.ROOT_DIR / "config.py"))
 
         # ── MODEL REGISTRY ───────────────────────────────────
-        # stages: None → Staging → Production → Archived
-        registry_name = f"mitsui-{model_type}"
-
         mlflow.log_artifact(str(models_file), artifact_path="model")
-        run_id = mlflow.active_run().info.run_id
+        run_id    = mlflow.active_run().info.run_id
         model_uri = f"runs:/{run_id}/model"
+
         registered = mlflow.register_model(
             model_uri=model_uri,
-            name=registry_name,
+            name=f"mitsui-{model_type}",
         )
+
         logger.info(
             "Model registered — name: %s | version: %s",
             registered.name,
@@ -226,13 +207,16 @@ def run_training(model_type: str) -> None:
         )
 
         logger.info(
-            "MLflow run complete — "
-            "experiment: %s | model: %s | run_id: %s",
+            "MLflow run complete — experiment: %s | model: %s | run_id: %s",
             config.MLFLOW_EXPERIMENT,
             model_type,
             run_id,
         )
 
+
+# ============================================================
+# ENTRY POINT
+# ============================================================
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
@@ -241,20 +225,20 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--model",
         type=str,
-        choices=["lgbm", "stacking", "both"],
+        choices=["lgbm", "stacking", "transformer", "both"],
         default="lgbm",
         help="Which model to train (default: lgbm)",
     )
     return parser.parse_args()
- 
- 
+
+
 if __name__ == "__main__":
     args = parse_args()
- 
+
     if args.model == "both":
-        logger.info("Training both models...")
+        logger.info("Training all models...")
         run_training("lgbm")
         run_training("stacking")
+        run_training("transformer")
     else:
         run_training(args.model)
-     
